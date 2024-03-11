@@ -1,9 +1,9 @@
 # NowPlayingDisplay
-NowPlayingDisplay shows full screen album art and information on an HDMI screen for your currently playing music. It is universal (player agnostic), API driven, and written in python. NowPlayingDisplay requires a client to push data to keep the display updated. This repo has client integrations available for Home Assistant, WiiM, and TIDAL desktop on the Mac. The Home Assistant integration means it works with any music player that works with Home Assistant. 
+NowPlayingDisplay shows full screen album art and information on an HDMI screen for your currently playing music. It is universal (player agnostic), API driven, and written in python. It requires a client to push data and keep the display updated. This repo has client integrations available for Home Assistant, WiiM, and TIDAL desktop on the Mac. The Home Assistant integration means it works with any music player that works with Home Assistant. 
 
 ## The Display 
 
-Below are pictures of NowPlayingDisplay running on a 6" HDMI screen. The ablum art fills the full left square, while the remaining space to the right contains organized information and a progress bar for the currently playing title. The album art and metadata is all sourced from the iTunes music service API. 
+Below are pictures of NowPlayingDisplay running on a 6" HDMI screen. The ablum art fills the full left square, while the remaining space to the right contains organized information and a progress bar for the currently playing title. The album art and metadata is all sourced from the iTunes music service API.
 
 ![photo](./images/display1.jpeg)
 
