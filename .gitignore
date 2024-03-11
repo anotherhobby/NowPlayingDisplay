@@ -2,6 +2,7 @@ rsync.sh
 /album_images
 screensaver.lock
 test_*
+npsettings.py
 
 # below Created by https://www.toptal.com/developers/gitignore/api/python
 
