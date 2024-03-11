@@ -1,7 +1,7 @@
 from tkinter import Label, ttk
 from threading import Timer
 from screensaver import AlbumArtScreensaver
-from npsettings import screensaver_delay
+from npsettings import screensaver_delay, primary_fontname, header_fontname
 
 
 class NowPlayingDisplay:
@@ -9,8 +9,8 @@ class NowPlayingDisplay:
     def __init__(self, tk_instance, screenwidth, screenheight):
         self.fontsize = screenheight // 33
         self.header_fontsize = int(self.fontsize * 0.8)
-        self.fontname = "VL PGothic"
-        self.header_fontname = "Droid Sans Fallback"
+        self.fontname = primary_fontname
+        self.header_fontname = header_fontname
         self.bgcolor = "#000000"
         self.header_bgcolor = "#1F1F1F"
         self.active_foreground = "#FFFFFF"

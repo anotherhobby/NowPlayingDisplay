@@ -17,9 +17,7 @@ from thefuzz import process
 from get_cover_art.cover_finder import DEFAULTS, CoverFinder, Meta
 from npstate import NowPlayingState
 from npdisplay import NowPlayingDisplay
-
-# enable debug logging across the board
-DEBUG = True
+from npsettings import DEBUG
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
