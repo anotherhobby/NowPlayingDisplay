@@ -1,0 +1,33 @@
+# to use this automation:
+#   1. see the rest_command definition in configuration.yml
+#   2. do a search/replace for `denon_heos` and replace with your media player entity id
+alias: Update Now Playing
+trigger:
+  - platform: state
+    entity_id: media_player.denon_heos
+action:
+  - condition: template
+    value_template: >-
+      {{ states('media_player.denon_heos') in ['playing', 'paused', 'stopped', 'completed', 'idle'] }}
+  - condition: template
+    value_template: "{{ state_attr('media_player.denon_heos', 'media_duration') is defined }}"
+  - service: rest_command.update_now_playing
+    data_template:
+      album: "{{ state_attr('media_player.denon_heos', 'media_album_name') }}"
+      artist: >
+        {% set artists = state_attr('media_player.denon_heos', 'media_artist') %}  
+        {% if artists %}
+          {{ artists.split(',') }}
+        {% else %}
+          []
+        {% endif %}
+      title: "{{ state_attr('media_player.denon_heos', 'media_title') }}"
+      duration: >
+        {% set duration_seconds = state_attr('media_player.denon_heos','media_duration') | int() %}
+        {{ "%d:%02d" % ((duration_seconds // 60), (duration_seconds % 60)) }}
+      elapsed: >
+        {% set elapsed_seconds = state_attr('media_player.denon_heos','media_position') | int(default=0) %}
+        {{ "%d:%02d" % ((elapsed_seconds // 60), (elapsed_seconds % 60)) }}
+      state: >
+        {% set state_value = states('media_player.denon_heos') %} {{ state_value}}
+      npclient: "denon_heos"

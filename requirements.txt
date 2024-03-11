@@ -1,0 +1,9 @@
+Flask
+Pillow
+requests
+xmltodict
+upnpclient
+thefuzz
+tkinter
+pygame
+beautifulsoup4
