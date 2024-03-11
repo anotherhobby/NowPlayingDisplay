@@ -29,7 +29,7 @@ For the album art and metadata, NowPlayingDisplay searches Apple Music and then 
 ## Hardware
 NowPlayingDisplay uses very little CPU and is platform independant (it even runs on my Mac running Sonoma). A Raspberry pi zero would be more than enough. I run it on a pi4 (overkill) with a 6 inch HDMI display:
 
-![photo](./images/desktop.jpg)
+![photo](./images/desktop.jpeg)
 
 ## Running NowPlayingDisplay
 
