@@ -6,14 +6,13 @@ from threading import Timer
 
 import requests
 from npstate import NowPlayingState
-from npsettings import npapi_address, npapi_port
+from npsettings import npapi_address, npapi_port, tidal_client
 
 # tidal_watcher.py pushes now playing information to the now playing display API 
 # every 10s and any time the TIDAL deskop player changes state. 
 
 np = NowPlayingState()
 now_playing_lock = False
-np_client = "tidal"
 
 parent_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -90,7 +89,7 @@ def post_now_playing(now_playing):
         "state": now_playing["state"],
         "elapsed": now_playing["elapsed"],
         "duration": now_playing["duration"],
-        "npclient": np_client,
+        "npclient": tidal_client,
     }
     
     try:
