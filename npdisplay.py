@@ -329,8 +329,8 @@ class NowPlayingDisplay:
         self.pgbar_color = self.active_pgbar_color
         self._update_foreground()
         if self.idle_timer:
-            self.idle_timer.cancel()
             self.screensaver.stop()
+            self.idle_timer.cancel()
             self.idle_timer = None
             self.screensaver = None
             self.lock = False

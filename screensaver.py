@@ -115,6 +115,7 @@ class AlbumArtScreensaver:
             clock.tick(10)
         logger.debug("Quitting screensaver...")
         pygame.quit()
+        logger.debug("Screensaver done.")
 
 
 if __name__ == "__main__":

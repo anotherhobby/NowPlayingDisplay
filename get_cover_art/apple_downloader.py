@@ -129,7 +129,7 @@ class AppleDownloader(object):
             logger.debug(f"1st search info: {info}")
             return (norm_artist, norm_album, info, len(norm_album) == 0)
 
-        # 2nd search, if any (parenthesis words) in the title, try again without those words
+        # 2nd search, if any (parenthesis words) in the TITLE, try again without those words
         if "(" in meta.title:
             s_norm_title = self.artist_normalizer.normalize(self._strip_paren_words(meta.title))
             info = self._query(norm_artist, norm_album, s_norm_title)
@@ -146,8 +146,17 @@ class AppleDownloader(object):
             if info.get('resultCount') > 0:
                 logger.debug(f"3rd search info: {info}")
                 return (norm_a_artist, norm_album, info, len(norm_album) == 0)
+            
+        # 4nd search, if any (parenthesis words) in the ALBUM, try again without those words
+        if "(" in meta.album:
+            s_norm_album = self.artist_normalizer.normalize(self._strip_paren_words(meta.album))
+            info = self._query(norm_artist, s_norm_album, norm_title)
+            logger.debug(f"Search query: {norm_artist}, {s_norm_album}, {norm_title}")
+            if info.get('resultCount') > 0:
+                logger.debug(f"4th search info: {info}")
+                return (norm_artist, s_norm_album, info, len(s_norm_album) == 0)
 
-        # 4th search, if no results found yet, try deromanizer
+        # 5th search, if no results found yet, try deromanizer
         logger.debug("No results found yet, trying deromanizer")
         artist = self.deromanizer.convert_all(norm_artist)
         album = self.deromanizer.convert_all(norm_album)

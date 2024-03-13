@@ -8,7 +8,7 @@ screensaver_delay = 180
 # whether to enable debug logging... it's quite verbose
 DEBUG = False
 
-# these are the fonts that are used in the UI, they should be installed on the system
+# these are the fonts that are used in the UI, they need to be installed on the system
 # and can also be changed to other fonts if desired
 primary_fontname = "VL PGothic"
 header_fontname = "Droid Sans Fallback"
