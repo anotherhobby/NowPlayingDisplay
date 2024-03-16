@@ -318,9 +318,8 @@ class NowPlayingDisplay:
             self._stop_screensaver()
         self.screensaver_lock = True
         self.screensaver = AlbumArtScreensaver(debug=self.DEBUG)
-        self.screensaver.start()
-        self.screensaver_timer = Timer(delay, self.screensaver.start)
-        self.screensaver_timer.start()
+        self.screensaver_timer = Timer(int(delay), self.screensaver.start)
+        self.screensaver_timer.start()  
 
     def _stop_screensaver(self):
         if self.screensaver:
@@ -332,10 +331,10 @@ class NowPlayingDisplay:
 
     def set_inactive(self):
         # dim the text color of the labels when the player is inactive
-        self.foreground = self.inactive_foreground
-        self.pgbar_color = self.inactive_pgbar_color
-        self._update_foreground()
         if not self.screensaver_lock:
+            self.foreground = self.inactive_foreground
+            self.pgbar_color = self.inactive_pgbar_color
+            self._update_foreground()
             self._start_screensaver(screensaver_delay)
 
     def set_active(self):

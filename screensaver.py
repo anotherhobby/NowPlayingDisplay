@@ -37,7 +37,7 @@ class AlbumArtScreensaver:
         return os.path.exists(self.lockfile_path)
     
     def start(self):
-        logger.debug("Starting screensaver...")
+        logger.debug("Starting screensaver thread...")
         self.start_time = time.time()
         with open(self.lockfile_path, "w") as f:
             f.write("1")

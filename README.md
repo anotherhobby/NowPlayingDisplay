@@ -82,4 +82,4 @@ Known issues with `tidal_watcher.py`:
 
 ### Writing Your Own Client
 
-Three clients are provided that should prove to be good examples to creaate your own. The main concept is any time your player state changes, other than the passage of time, have the client send an update. You want your client pushing data to the display server at least once every 10s, and overly agressive (less than 1s) is not good as it can make the elapsed time flow less smoothly.# NowPlayingDisplay
+Three clients are provided that should prove to be good examples to creaate your own. The main concept is any time your player state changes, other than the passage of time, have the client send an update. You want your client pushing data to the display server at least once every 10s, and overly agressive (less than 1s) is not good as it can make the elapsed time flow less smoothly.
