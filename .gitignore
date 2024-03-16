@@ -1,4 +1,5 @@
 rsync.sh
+kill.sh
 /album_images
 screensaver.lock
 test_*
