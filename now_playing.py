@@ -174,6 +174,14 @@ def np_mainloop():
         time.sleep(1)
         # update_state checks for new API payloads and updates the state if found
         if not state.update_state():
+
+            # if the screensaver has been running for longer than the defined seconds, restart it to prevent memory leaks in pygame
+            if npui.screensaver is not None:
+                if npui.screensaver.running:
+                    if time.time() - npui.screensaver.start_time > (3660 * 2):
+                        logger.debug("Screensaver has been running for too long, restarting...")
+                        npui.restart_screensaver()
+
             # if the player is playing and state hasn't changed, only update progress
             if state.get_player_state() == "playing":
                 npui.set_duration(state.get_duration())

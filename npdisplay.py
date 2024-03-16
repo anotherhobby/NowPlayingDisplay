@@ -1,5 +1,6 @@
 from tkinter import Label, ttk
 from threading import Timer
+import time
 from screensaver import AlbumArtScreensaver
 from npsettings import screensaver_delay, primary_fontname, header_fontname
 
@@ -19,10 +20,10 @@ class NowPlayingDisplay:
         self.inactive_pgbar_color = "#5C5C5C"
         self.foreground = self.active_foreground
         self.pgbar_color = self.active_pgbar_color
-        self.idle_timer = None
+        self.screensaver_timer = None
+        self.screensaver_lock = False
         self.screensaver = None
         self.DEBUG = False
-        self.lock = False
 
         # Row Configuration
         tk_instance.rowconfigure(0, weight=0) 
@@ -312,26 +313,45 @@ class NowPlayingDisplay:
         style = ttk.Style()
         style.configure("Custom.Horizontal.TProgressbar", background=self.pgbar_color)
 
+    def _start_screensaver(self, delay):
+        if AlbumArtScreensaver.running:
+            self._stop_screensaver()
+        self.screensaver_lock = True
+        self.screensaver = AlbumArtScreensaver(debug=self.DEBUG)
+        self.screensaver.start()
+        self.screensaver_timer = Timer(delay, self.screensaver.start)
+        self.screensaver_timer.start()
+
+    def _stop_screensaver(self):
+        if self.screensaver:
+            self.screensaver.stop()
+            self.screensaver_timer.cancel()
+            self.screensaver_timer = None
+            self.screensaver = None
+            self.screensaver_lock = False
+
     def set_inactive(self):
         # dim the text color of the labels when the player is inactive
-        if not self.lock:
-            self.lock = True
-            self.foreground = self.inactive_foreground
-            self.pgbar_color = self.inactive_pgbar_color
-            self._update_foreground()
-            self.screensaver = AlbumArtScreensaver(debug=self.DEBUG)
-            self.idle_timer = Timer(screensaver_delay, self.screensaver.start)
-            self.idle_timer.start()
+        self.foreground = self.inactive_foreground
+        self.pgbar_color = self.inactive_pgbar_color
+        self._update_foreground()
+        if not self.screensaver_lock:
+            self._start_screensaver(screensaver_delay)
 
     def set_active(self):
         # lighten the text color of the labels when the player is active
         self.foreground = self.active_foreground
         self.pgbar_color = self.active_pgbar_color
         self._update_foreground()
-        if self.idle_timer:
-            self.screensaver.stop()
-            self.idle_timer.cancel()
-            self.idle_timer = None
-            self.screensaver = None
-            self.lock = False
+        if self.screensaver_timer:
+            self._stop_screensaver()
+
+    def restart_screensaver(self):
+        if self.screensaver:
+            self._stop_screensaver()
+        while AlbumArtScreensaver.running:
+            print("Waiting for screensaver to stop...")
+            time.sleep(0.1)
+        self._start_screensaver(0)
+
 
