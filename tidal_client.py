@@ -26,11 +26,10 @@ def process_log_message(message):
             state = message["state"]
             if state == "active":
                 state = "playing"
-            now_playing(state)
-            np.set_player_state(state)
+            now_playing()
 
 
-def now_playing(state):
+def now_playing():
     '''
     Primary workflow thread.
     Gets now playing information by scraping the TIDAL user interface with applescript,
@@ -45,18 +44,15 @@ def now_playing(state):
         now_playing = read_tidal_ui()
         
         # add state and time information to now_playing data
-        if state == "active":
+        if now_playing["state"] == "playing":
             now_playing["elapsed"] = increment_time_elapsed(now_playing["elapsed"])
 
-        if state in ["completed", "stopped"]:
+        if now_playing["state"] in ["completed", "stopped"]:
             now_playing["elapsed"] = now_playing["duration"]
             now_playing["elapsed"] = "0:00"
 
-        if np.get_player_state() == "stopped":
-            pass
 
         # post the now playing information to the now playing display API
-        now_playing["state"] = state
         status = post_now_playing(now_playing)
         if not status:
             time.sleep(10)
@@ -132,7 +128,7 @@ def read_tidal_ui():
 def check_inactivity():
     # we don't want more than 10 seconds to pass without pushing an update to now playing
     if time.time() - int(np.last_update_time) >= 10:
-        now_playing(np.get_player_state())
+        now_playing()
     # check for inactivity every second
     Timer(1, check_inactivity).start()
 
