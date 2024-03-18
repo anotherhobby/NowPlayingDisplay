@@ -32,10 +32,35 @@ tell application "System Events"
 		set totalTimeContainer to UI element 1 of group 2 of timeContainer
 		set totalTime to value of totalTimeContainer
 		
+		set activity to menu item 1 of menu 1 of menu bar item 5 of menu bar 1 of process "TIDAL"
+		if name of activity is "Pause" then
+			set playerState to "playing"
+		else
+			set playerState to "paused"
+		end if
+		
+		set previous to enabled of menu item 3 of menu 1 of menu bar item 5 of menu bar 1 of process "TIDAL"
+		set next to enabled of menu item 4 of menu 1 of menu bar item 5 of menu bar 1 of process "TIDAL"
+		
 	on error
-		return "{ \"error\": \"Error retrieving information from TIDAL window.\" }"
+		-- determine if the player is stopped or the window isn't responding
+		try
+			set previous to enabled of menu item 3 of menu 1 of menu bar item 5 of menu bar 1 of process "TIDAL"
+			set next to enabled of menu item 4 of menu 1 of menu bar item 5 of menu bar 1 of process "TIDAL"
+			if previous is true then
+				return "{ \"error\": \"Error retrieving information from TIDAL window.\" }"
+			else if next is true then
+				return "{ \"error\": \"Error retrieving information from TIDAL window.\" }"
+			else
+				return "{\"title\": \"\", \"album\": \"\", \"artist\": [\"\"], \"duration\": \"\", \"elapsed\": \"\", \"state\": \"stopped\"}"
+			end if
+		on error
+			return "{ \"error\": \"Error retrieving information from TIDAL window.\" }"
+		end try
 	end try
 end tell
+
+
 
 -- Handler to format the artist variable for JSON output
 on format_artist(artist)
@@ -82,5 +107,5 @@ on clean_list(lst)
 end clean_list
 
 -- Output JSON to standard out
-return "{\"title\": \"" & track & "\", \"album\": \"" & album & "\", \"artist\": " & format_artist(artist) & ", \"duration\": \"" & totalTime & "\", \"elapsed\": \"" & timeElapsed & "\"}"
+return "{\"title\": \"" & track & "\", \"album\": \"" & album & "\", \"artist\": " & format_artist(artist) & ", \"duration\": \"" & totalTime & "\", \"elapsed\": \"" & timeElapsed & "\", \"state\": \"" & playerState & "\"}"
 title
