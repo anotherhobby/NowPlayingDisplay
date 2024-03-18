@@ -103,17 +103,6 @@ class NowPlayingState:
     def get_tracks(self):
         return self.tracks
 
-    # def get_track_count(self):
-    #     for index, name in enumerate(self.tracks, start=1):
-    #         if name.lower() == self.title.lower():
-    #             return f"{index}/{len(self.tracks)}"
-    #         if name.lower() in self.title.lower():
-    #             return f"{index}/{len(self.tracks)}"
-    #     if len(self.tracks) > 0:
-    #         # print(f"Title {self.title} not found in tracks: {self.tracks}")
-    #         return f"?/{len(self.tracks)}"
-    #     return ""
-
     def add_api_payload(self, payload):
         self.api_payloads.append(payload)
 
@@ -215,7 +204,11 @@ class NowPlayingState:
 
     def get_artist_multi_line(self):
         if len(self.artist) > 1:
-            return "\n".join(self.artist)
+            if len(self.artist) < 5:
+                return "\n".join(self.artist)
+            else:
+                # too many lines for the display space, use commas
+                return ", ".join(self.artist)
         else:
             return self.artist[0]
 
