@@ -343,6 +343,8 @@ if __name__ == "__main__":
     if DEBUG:
         logger.setLevel(logging.DEBUG)
 
+    display_setup()
+
     logger.info("Starting API...")
     Thread(target=start_api).start()
 

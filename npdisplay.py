@@ -313,9 +313,12 @@ class NowPlayingDisplay:
         style = ttk.Style()
         style.configure("Custom.Horizontal.TProgressbar", background=self.pgbar_color)
 
-    def _start_screensaver(self, delay):
+    def start_screensaver(self, delay):
         if AlbumArtScreensaver.running:
-            self._stop_screensaver()
+            if AlbumArtScreensaver.display_is_on():
+                self._stop_screensaver()
+            else:
+                return
         self.screensaver_lock = True
         self.screensaver = AlbumArtScreensaver(debug=self.DEBUG)
         self.screensaver_timer = Timer(int(delay), self.screensaver.start)
@@ -335,7 +338,7 @@ class NowPlayingDisplay:
             self.foreground = self.inactive_foreground
             self.pgbar_color = self.inactive_pgbar_color
             self._update_foreground()
-            self._start_screensaver(screensaver_delay)
+            self.start_screensaver(screensaver_delay)
 
     def set_active(self):
         # lighten the text color of the labels when the player is active
@@ -349,8 +352,7 @@ class NowPlayingDisplay:
         if self.screensaver:
             self._stop_screensaver()
         while AlbumArtScreensaver.running:
-            print("Waiting for screensaver to stop...")
             time.sleep(0.1)
-        self._start_screensaver(0)
+        self.start_screensaver(0)
 
 

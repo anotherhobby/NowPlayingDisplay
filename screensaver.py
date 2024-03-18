@@ -5,6 +5,7 @@ import pygame
 import math
 from threading import Thread
 import logging
+import subprocess
 
 logging.basicConfig(level=logging.INFO)
 logger=logging.getLogger(__name__)
@@ -15,7 +16,6 @@ class AlbumArtScreensaver:
         self.debug = debug
         if self.debug:
             logger.setLevel(logging.DEBUG)
-            logger.debug("Initializing new AlbumArtScreensaver instance")
         self.update_interval = 5  # how often to update grid squares (in seconds)
         self.update_time = time.time()
         self.start_time = time.time()
@@ -128,9 +128,30 @@ class AlbumArtScreensaver:
             clock.tick(10)
         # current date and time
         logger.debug(f"Quitting screensaver at {time.ctime()}...")
+        if not self.display_is_on():
+            logger.debug("Display is off, waiting indefinitely for it to turn on...")
+        while not self.display_is_on():
+            time.sleep(1)
         pygame.quit()
         AlbumArtScreensaver.running = False
         logger.debug("Screensaver successfully stopped.")
+
+    def display_is_on(self):
+        try:
+            # the xrandr command will return a string with the screen mm size
+            # in the second line. That value will be 0 if the display is physically 
+            # powered off, which causes pygame to crash when quitting the screensaver.
+            output = subprocess.check_output(['xrandr'], universal_newlines=True)
+            line = output.split('\n')[1]
+            if int(line.split()[-1][:-2]) > 0:
+                return True
+            else:
+                return False
+        except subprocess.CalledProcessError:
+            logger.error("Error: Unable to execute xrandr command.")
+        except Exception as e:
+            logger.error("Error:", e)
+        return True # don't block if the command fails
 
 
 if __name__ == "__main__":
