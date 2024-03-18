@@ -162,30 +162,50 @@ def strip_paren_words(value: str) -> str:
     return result.strip()
 
 
+def clear_display():
+    '''Clear all text fields on the display'''
+    missing_art = os.path.join(CODE_PATH, 'images/missing_art.png')
+    logger.debug(f"missing art path: {missing_art}")
+    npui.set_title("")
+    npui.set_artist("")
+    npui.set_album("")
+    npui.set_track("")
+    npui.set_duration("")
+    npui.set_elapsed("")
+    npui.set_album_released("")
+    npui.set_album_duration("")
+    img = mk_path_image(missing_art)
+    npui.set_artwork(img)
+    state.set_displayed_album("missing art")
+    tk.update()
+    
+
 def np_mainloop():
     ''' Main loop for the Now Playing display, updates the display with new information every second'''
     old_title = ""
     album_for_current_art = ""
     missing_art = os.path.join(CODE_PATH, 'images/missing_art.png')
 
-    display_setup()
+    clear_display()
 
     while running:
         time.sleep(1)
         # update_state checks for new API payloads and updates the state if found
         if not state.update_state():
 
-            # if the screensaver has been running for longer than the defined seconds, restart it to prevent memory leaks in pygame
-            if npui.screensaver is not None:
-                if npui.screensaver.running:
-                    if time.time() - npui.screensaver.start_time > (3660 * 2):
-                        logger.debug("Screensaver has been running for too long, restarting...")
-                        npui.restart_screensaver()
+            # # this code is for restarting the screensaver if it has been running for too long,
+            # # which may now be unnecessary. commenting out for now...
+            # if npui.screensaver is not None:
+            #     if npui.screensaver.running:
+            #         if time.time() - npui.screensaver.start_time > 3660:
+            #             logger.debug("Screensaver has been running for too long, restarting...")
+            #             npui.restart_screensaver()
 
             # if the player is playing and state hasn't changed, only update progress
             if state.get_player_state() == "playing":
                 npui.set_duration(state.get_duration())
                 npui.set_elapsed(state.get_epoc_elapsed())
+
             continue
 
         try: # the player state has changed, update the display
@@ -204,6 +224,11 @@ def np_mainloop():
             if title != old_title:
                 # the song title has changed, update the display
                 old_title = title
+
+                if title == "":
+                    clear_display()
+                    npui.start_screensaver(5)
+                    continue
 
                 # update the artist and duration on the display
                 artist_text = state.get_artist_multi_line()
@@ -318,12 +343,11 @@ if __name__ == "__main__":
     if DEBUG:
         logger.setLevel(logging.DEBUG)
 
-    logger.info("Starting NowPlayingDisplay!")
-    display_setup()
-    Thread(target=np_mainloop).start()
-
     logger.info("Starting API...")
     Thread(target=start_api).start()
+
+    logger.info("Starting NowPlayingDisplay thread...")
+    Thread(target=np_mainloop).start()
 
     logger.info("Starting main display loop...")
     tk.mainloop()
