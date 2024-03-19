@@ -29,6 +29,7 @@ finder = CoverFinder(debug=DEBUG)
 npapi = Flask(__name__)
 
 CODE_PATH = os.path.dirname(os.path.abspath(__file__))
+missing_art = os.path.join(CODE_PATH, 'images/missing_art.png')
 npui.set_debug(DEBUG)
 state.set_debug(DEBUG)
 running = True
@@ -164,8 +165,7 @@ def strip_paren_words(value: str) -> str:
 
 def clear_display():
     '''Clear all text fields on the display'''
-    missing_art = os.path.join(CODE_PATH, 'images/missing_art.png')
-    logger.debug(f"missing art path: {missing_art}")
+    logger.debug("clearing display")
     npui.set_title("")
     npui.set_artist("")
     npui.set_album("")
@@ -174,19 +174,21 @@ def clear_display():
     npui.set_elapsed("")
     npui.set_album_released("")
     npui.set_album_duration("")
-    img = mk_path_image(missing_art)
-    npui.set_artwork(img)
     state.set_displayed_album("missing art")
     tk.update()
-    
+
+
 
 def np_mainloop():
     ''' Main loop for the Now Playing display, updates the display with new information every second'''
     old_title = ""
     album_for_current_art = ""
-    missing_art = os.path.join(CODE_PATH, 'images/missing_art.png')
-
+    logger.debug("waiting for the display to be ready...")
+    display_setup()
     clear_display()
+    missing_album = mk_path_image(missing_art)
+    npui.set_artwork(missing_album)
+
 
     while running:
         time.sleep(1)
@@ -223,11 +225,11 @@ def np_mainloop():
             title = state.get_title()
             if title != old_title:
                 # the song title has changed, update the display
+                logger.debug(f"Title has changed: {title}")
                 old_title = title
-
                 if title == "":
                     clear_display()
-                    npui.start_screensaver(5)
+                    npui.start_screensaver(10)
                     continue
 
                 # update the artist and duration on the display
@@ -260,11 +262,12 @@ def np_mainloop():
                             if album_for_current_art != "":
                                 image_data = finder.downloader._urlopen_safe(state.get_art_url())
                                 img = mk_path_image(io.BytesIO(image_data))
+                                npui.set_artwork(img)
                             else:
-                                img = mk_path_image(missing_art)
-                            npui.set_artwork(img)
+                                logger.debug("No album art found, using default")
+                                state.set_displayed_album("missing art")
+                                npui.set_artwork(missing_album)
                             album_for_current_art = state.get_album()
-                            state.set_displayed_album("missing art")
                             state.set_tracks([])
                             npui.set_album_released("")
                             npui.set_album_duration("") 
@@ -342,8 +345,6 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     if DEBUG:
         logger.setLevel(logging.DEBUG)
-
-    display_setup()
 
     logger.info("Starting API...")
     Thread(target=start_api).start()
