@@ -1,3 +1,4 @@
+import tkinter as tk
 from tkinter import Label, ttk
 from threading import Timer
 import time
@@ -14,12 +15,15 @@ class NowPlayingDisplay:
         self.header_fontname = header_fontname
         self.bgcolor = "#000000"
         self.header_bgcolor = "#1F1F1F"
+        self.header_fgcolor = "#CCCCCC"
         self.active_foreground = "#FFFFFF"
         self.inactive_foreground = "#666666"
         self.active_pgbar_color = "#7D7D7D"
         self.inactive_pgbar_color = "#5C5C5C"
         self.foreground = self.active_foreground
         self.pgbar_color = self.active_pgbar_color
+        self.active_artwork = None
+        self.inactive_artwork = None
         self.screensaver_timer = None
         self.screensaver_lock = False
         self.screensaver = None
@@ -45,7 +49,7 @@ class NowPlayingDisplay:
             pady=0,
             font=(self.header_fontname, self.header_fontsize),
             bg=self.header_bgcolor,
-            fg=self.active_foreground
+            fg=self.header_fgcolor
         )
         self.title_header_lbl.grid(row=1, column=1, columnspan=3, sticky="new")
 
@@ -75,7 +79,7 @@ class NowPlayingDisplay:
             pady=0,
             font=(self.header_fontname, self.header_fontsize),
             bg=self.header_bgcolor,
-            fg=self.active_foreground
+            fg=self.header_fgcolor
         )
         self.album_header_lbl.grid(row=2, column=1, columnspan=3, sticky="new")
 
@@ -99,7 +103,7 @@ class NowPlayingDisplay:
             anchor="s",
             wraplength=screenwidth-screenheight,
             justify="center",
-            padx=10,
+            padx=20,
             pady=0,
             font=(self.fontname, self.header_fontsize),
             bg=self.bgcolor,
@@ -132,7 +136,7 @@ class NowPlayingDisplay:
             pady=0,
             font=(self.header_fontname, self.header_fontsize),
             bg=self.header_bgcolor,
-            fg=self.active_foreground
+            fg=self.header_fgcolor
         )
         self.artist_header_lbl.grid(row=3, column=1, columnspan=3, sticky="new")
 
@@ -161,7 +165,7 @@ class NowPlayingDisplay:
             pady=0,
             font=(self.header_fontname, self.header_fontsize),
             bg=self.header_bgcolor,
-            fg=self.active_foreground
+            fg=self.header_fgcolor
         )
         self.track_header_lbl.grid(row=4, column=1, columnspan=3, sticky="ew")
 
@@ -197,7 +201,7 @@ class NowPlayingDisplay:
             text="0:00",
             anchor="se",
             font=(self.fontname, self.fontsize),
-            padx=15,
+            padx=20,
             pady=0,
             bg=self.bgcolor,
             fg=self.active_foreground
@@ -231,18 +235,37 @@ class NowPlayingDisplay:
         )
         self.art_lbl.grid(row=1, column=0, rowspan=6, sticky="wns", padx=0, pady=0)
 
-        # For thin dark vertical spacer bars on the sides of the info part of the screen
-        self.vertbar_lbl = Label(
-            tk_instance,
-            image=None
+        # create vertical progress bars to use as borders for the sides of the screen
+        vstyle = ttk.Style()
+        vstyle.theme_use('default')
+        vstyle.configure(
+            "Custom.Vertical.TProgressbar",
+            foreground="black",
+            background=self.pgbar_color,
+            troughcolor=self.header_bgcolor,
+            borderwidth=0,
+            width=6
         )
-        self.vertbar_lbl.grid(row=1, column=0, rowspan=6, sticky="ens", padx=0, pady=0)
+        self.left_pgbar = ttk.Progressbar(
+            tk_instance,
+            orient="vertical",
+            mode="determinate",
+            style="Custom.Vertical.TProgressbar"
+        )
+        self.left_pgbar.config(length=screenheight, value=0, maximum=100)
+        self.left_pgbar.grid(row=1, column=0, rowspan=6, sticky="ens", padx=0, pady=0)
 
-        self.vertbarR_lbl = Label(
+        self.right_pgbar = ttk.Progressbar(
             tk_instance,
-            image=None
+            orient="vertical",
+            mode="determinate",
+            style="Custom.Vertical.TProgressbar"
         )
-        self.vertbarR_lbl.grid(row=1, column=2, rowspan=6, sticky="ens", padx=0, pady=0)
+        self.right_pgbar.config(length=screenheight, value=0, maximum=100)
+        self.right_pgbar.grid(row=1, column=2, rowspan=6, sticky="ens", padx=0, pady=0)
+        self.left_pgbar["value"] = 0
+        self.right_pgbar["value"] = 0
+
 
     def _time_to_seconds(self, time_str):
         # Convert time string in mm:ss format to seconds
@@ -293,8 +316,10 @@ class NowPlayingDisplay:
     def set_album_duration(self, new_album_duration):
         self.album_duration_lbl.config(text=new_album_duration)
 
-    def set_artwork(self, image):
-        self.art_lbl.config(image=image)
+    def set_artwork(self, active_artwork, inactive_artwork):
+        self.active_artwork = active_artwork
+        self.inactive_artwork = inactive_artwork
+        self.art_lbl.config(image=active_artwork)
 
     def set_track(self, track_text):
         self.track_lbl.config(text=track_text)
@@ -337,6 +362,9 @@ class NowPlayingDisplay:
         if not self.screensaver_lock:
             self.foreground = self.inactive_foreground
             self.pgbar_color = self.inactive_pgbar_color
+            # use the inactive artwork if it is available
+            if self.inactive_artwork:
+                self.art_lbl.config(image=self.inactive_artwork)
             self._update_foreground()
             self.start_screensaver(screensaver_delay)
 
@@ -344,6 +372,9 @@ class NowPlayingDisplay:
         # lighten the text color of the labels when the player is active
         self.foreground = self.active_foreground
         self.pgbar_color = self.active_pgbar_color
+        # use the active artwork if it is available
+        if self.active_artwork:
+            self.art_lbl.config(image=self.active_artwork)
         self._update_foreground()
         if self.screensaver_timer:
             self._stop_screensaver()
