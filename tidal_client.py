@@ -94,7 +94,7 @@ def post_now_playing(now_playing):
         np.set_last_update_time()
         return True
     except requests.exceptions.RequestException as e:
-        print("Failed to send now playing update", e)
+        # display is either off line, or another client is connected
         return False
 
 
@@ -106,7 +106,8 @@ def read_tidal_ui():
     #   'artist': ['Mr. Moods', 'The Jazz Jousters', 'Millennium Jazz Music'],
     #   'duration': '5:02',
     #   'elapsed': '3:34',
-    #   'title': 'Love Is A Strange Thing'
+    #   'title': 'Love Is A Strange Thing',
+    #   'state': 'playing'
     # }
     cmd = ['osascript', f'{parent_dir}/tidal-now-playing.applescript']
     while True:

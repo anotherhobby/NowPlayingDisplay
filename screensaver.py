@@ -68,7 +68,7 @@ class AlbumArtScreensaver:
     def _update_grid(self, window, image_map, grid, images, image_size):
         for i in range(len(grid)):
             for j in range(len(grid[i])):
-                if random.random() < 0.05:  # 10% chance of updating each cell
+                if random.random() < 0.05:  # 5% chance of updating each cell
                     image = self._select_random_image(images)
                     self.used_images.add(image)
                     grid[i][j] = pygame.transform.smoothscale(image, (image_size, image_size))
@@ -120,13 +120,14 @@ class AlbumArtScreensaver:
         # Main loop
         logger.debug(f"Starting main loop at {time.ctime()}...")
         clock = pygame.time.Clock()
+
         while self.lock_file():
             if time.time() - self.update_time > self.update_interval:
                 self.update_time = time.time()
                 new_image_map = self._update_grid(window, self.image_map.copy(), grid, images, image_size)
                 self.image_map = new_image_map.copy()
-            clock.tick(10)
-        # current date and time
+            clock.tick(5)
+
         logger.debug(f"Quitting screensaver at {time.ctime()}...")
         if not self.display_is_on():
             logger.debug("Display is off, waiting indefinitely for it to turn on...")
@@ -138,9 +139,8 @@ class AlbumArtScreensaver:
 
     def display_is_on(self):
         try:
-            # the xrandr command will return a string with the screen mm size
-            # in the second line. That value will be 0 if the display is physically 
-            # powered off, which causes pygame to crash when quitting the screensaver.
+            # If the display is physically powered off, pygame will crash when quitting the screensaver.
+            # Check if the display is on by running the xrandr command
             output = subprocess.check_output(['xrandr'], universal_newlines=True)
             line = output.split('\n')[1]
             if int(line.split()[-1][:-2]) > 0:
