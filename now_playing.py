@@ -176,6 +176,8 @@ def clear_display():
     npui.set_album_released("")
     npui.set_album_duration("")
     state.set_displayed_album("missing art")
+    a, i = mk_album_art(missing_art)
+    npui.set_artwork(a, a)
     tk.update()
 
 
@@ -187,8 +189,6 @@ def np_mainloop():
     logger.debug("waiting for the display to be ready...")
     display_setup()
     clear_display()
-    missing_album, unused = mk_album_art(missing_art)
-    npui.set_artwork(missing_album, missing_album)
 
     while running:
         tk.update()
@@ -237,8 +237,8 @@ def np_mainloop():
                         art, album, album_url = fetch_album()
                         if art is not None:
                             # set the album art to the new image
-                            active_artwork, inactive_artwork = mk_album_art(io.BytesIO(art))
-                            npui.set_artwork(active_artwork, inactive_artwork)
+                            a, i = mk_album_art(io.BytesIO(art))
+                            npui.set_artwork(a, i)
                             state.set_displayed_album(state.get_album())
                             logger.debug(f"set image for album: {state.get_album()}")
                             album_for_current_art = album
@@ -251,12 +251,13 @@ def np_mainloop():
                             # if album art is provided, use it for the missing art, otherwise use the default missing art
                             if album_for_current_art != "":
                                 image_data = finder.downloader._urlopen_safe(state.get_art_url())
-                                active_artwork, inactive_artwork = mk_album_art(io.BytesIO(image_data))
-                                npui.set_artwork(active_artwork, inactive_artwork)
+                                a, i = mk_album_art(io.BytesIO(image_data))
+                                npui.set_artwork(a, i)
                             else:
                                 logger.debug("No album art found, using default")
                                 state.set_displayed_album("missing art")
-                                npui.set_artwork(missing_album, missing_album)
+                                a, i = mk_album_art(missing_art)
+                                npui.set_artwork(a, a)
                             album_for_current_art = state.get_album()
                             state.set_tracks([])
                             npui.set_album_released("")

@@ -1,3 +1,6 @@
+-- extend free trail for UI Browser:
+-- rm ~/Library/Logs/K6J1GI\(IkG.plist
+
 -- Reference to the target window
 tell application "System Events"
 	try
@@ -10,7 +13,7 @@ end tell
 -- extract text elements from the Tidal user interface
 tell application "System Events"
 	try
-		set htmLevel to group 1 of group 1 of group 1 of group 1 of targetWindow
+		set htmLevel to group 1 of group 1 of group 1 of group 1 of targetWindow		
 		set htmlContainer to first UI element of htmLevel
 		set containerLevel to group 1 of group 7 of group 2 of group 1 of htmlContainer
 		
@@ -81,7 +84,7 @@ on removeLeadingSpaces(inputText)
 	-- Remove one or more leading spaces from the input text
 	set textLength to length of inputText
 	set startIndex to 1
-	repeat while (startIndex ² textLength) and ((character startIndex of inputText) = " ")
+	repeat while (startIndex ï¿½ textLength) and ((character startIndex of inputText) = " ")
 		set startIndex to startIndex + 1
 	end repeat
 	set trimmedText to text startIndex thru -1 of inputText
