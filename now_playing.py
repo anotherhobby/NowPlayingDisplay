@@ -19,6 +19,7 @@ from npstate import NowPlayingState
 from npdisplay import NowPlayingDisplay
 from npsettings import DEBUG
 
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -43,10 +44,6 @@ def display_setup():
     tk.columnconfigure(1, weight=2)
     tk.columnconfigure(2, weight=0)
 
-    vertbar = os.path.join(CODE_PATH, 'images/vertbar.png')
-    bar = ImageTk.PhotoImage(Image.open(vertbar))
-    npui.vertbar_lbl.config(image=bar)
-    npui.vertbarR_lbl.config(image=bar)
     logger.debug("Display setup complete")
 
 
@@ -62,6 +59,7 @@ def fetch_album():
     album_art, data = finder.download(meta, art_path)
 
     if album_art:
+        state.set_album_id(data.get('collectionId', ""))
         album_title = data.get('collectionName', album)
         if "*" in album_title: # apple music uses a * on explicit titles
             if "*" not in album:
@@ -186,37 +184,26 @@ def np_mainloop():
     logger.debug("waiting for the display to be ready...")
     display_setup()
     clear_display()
-    missing_album = mk_path_image(missing_art)
-    npui.set_artwork(missing_album)
-
+    missing_album, unused = mk_album_art(missing_art)
+    npui.set_artwork(missing_album, missing_album)
 
     while running:
+        tk.update()
         time.sleep(1)
         # update_state checks for new API payloads and updates the state if found
         if not state.update_state():
-
-            # # this code is for restarting the screensaver if it has been running for too long,
-            # # which may now be unnecessary. commenting out for now...
-            # if npui.screensaver is not None:
-            #     if npui.screensaver.running:
-            #         if time.time() - npui.screensaver.start_time > 3660:
-            #             logger.debug("Screensaver has been running for too long, restarting...")
-            #             npui.restart_screensaver()
-
             # if the player is playing and state hasn't changed, only update progress
             if state.get_player_state() == "playing":
                 npui.set_duration(state.get_duration())
                 npui.set_elapsed(state.get_epoc_elapsed())
-
             continue
 
         try: # the player state has changed, update the display
             
-            # if the player is active, set the display to active (bright text), otherwise set it to inactive (dim text)
             if state.get_player_state() == "playing":
-                npui.set_active()
+                npui.set_active() # set the display to active (bright)
             else:
-                npui.set_inactive()
+                npui.set_inactive() # set the display to inactive (dim)
 
             # update the elapsed/duration and progress bar
             npui.set_duration(state.get_duration())
@@ -247,8 +234,8 @@ def np_mainloop():
                         art, album, album_url = fetch_album()
                         if art is not None:
                             # set the album art to the new image
-                            img = mk_path_image(io.BytesIO(art))
-                            npui.set_artwork(img)
+                            active_artwork, inactive_artwork = mk_album_art(io.BytesIO(art))
+                            npui.set_artwork(active_artwork, inactive_artwork)
                             state.set_displayed_album(state.get_album())
                             logger.debug(f"set image for album: {state.get_album()}")
                             album_for_current_art = album
@@ -261,12 +248,12 @@ def np_mainloop():
                             # if album art is provided, use it for the missing art, otherwise use the default missing art
                             if album_for_current_art != "":
                                 image_data = finder.downloader._urlopen_safe(state.get_art_url())
-                                img = mk_path_image(io.BytesIO(image_data))
-                                npui.set_artwork(img)
+                                active_artwork, inactive_artwork = mk_album_art(io.BytesIO(image_data))
+                                npui.set_artwork(active_artwork, inactive_artwork)
                             else:
                                 logger.debug("No album art found, using default")
                                 state.set_displayed_album("missing art")
-                                npui.set_artwork(missing_album)
+                                npui.set_artwork(missing_album, missing_album)
                             album_for_current_art = state.get_album()
                             state.set_tracks([])
                             npui.set_album_released("")
@@ -279,22 +266,35 @@ def np_mainloop():
 
                     # update the album title on the display
                     npui.set_album(split_lines(album_for_current_art))
-            
+
             # update the title & track on the display
             npui.set_title(split_lines(title))
-            npui.set_track(current_track())
+            track = current_track()
+            state.set_track(track.split(" ")[0])
+            npui.set_track(track)
 
         except Exception as e:
             logger.error(e)
 
-        tk.update()
 
+def mk_album_art(path):
+    # Resize the original image to the screen height
+    original_image = Image.open(path)
+    original_image = original_image.resize((tk.winfo_screenheight(), tk.winfo_screenheight()))
+    original_art = ImageTk.PhotoImage(original_image)
 
-def mk_path_image(path):
-    # resize an image to the screen height and return it as a PhotoImage
-    image = Image.open(path)
-    image = image.resize((tk.winfo_screenheight(),tk.winfo_screenheight()))
-    return ImageTk.PhotoImage(image)
+    # Create a copy of the original image
+    dimmed_image = original_image.copy()
+
+    # Apply a semi-transparent black overlay to create a dimmed effect
+    overlay = Image.new('RGBA', dimmed_image.size, (0, 0, 0, 128))  # 50% transparent black overlay
+    dimmed_image.paste(overlay, (0, 0), overlay)
+
+    # Convert the dimmed image to PhotoImage
+    dimmed_art = ImageTk.PhotoImage(dimmed_image)
+
+    return original_art, dimmed_art
+
 
 
 def signal_handler(sig, frame):
