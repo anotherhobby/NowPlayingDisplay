@@ -3,7 +3,11 @@ from tkinter import Label, ttk
 from threading import Timer
 import time
 from screensaver import AlbumArtScreensaver
-from npsettings import screensaver_delay, primary_fontname, header_fontname
+
+try:
+    from npsettings_local import screensaver_delay, primary_fontname, header_fontname
+except ImportError:
+    from npsettings import screensaver_delay, primary_fontname, header_fontname
 
 
 class NowPlayingDisplay:

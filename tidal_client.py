@@ -6,7 +6,11 @@ from threading import Timer
 
 import requests
 from npstate import NowPlayingState
-from npsettings import npapi_address, npapi_port, tidal_client
+
+try:
+    from npsettings_local import npapi_address, npapi_port, tidal_client
+except ImportError:
+    from npsettings import npapi_address, npapi_port, tidal_client
 
 # tidal_watcher.py pushes now playing information to the now playing display API 
 # every 10s and any time the TIDAL deskop player changes state. 

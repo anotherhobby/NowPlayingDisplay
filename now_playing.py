@@ -17,8 +17,11 @@ from thefuzz import process
 from get_cover_art.cover_finder import DEFAULTS, CoverFinder, Meta
 from npstate import NowPlayingState
 from npdisplay import NowPlayingDisplay
-from npsettings import DEBUG
 
+try:
+    from npsettings_local import DEBUG
+except ImportError:
+    from npsettings import DEBUG
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

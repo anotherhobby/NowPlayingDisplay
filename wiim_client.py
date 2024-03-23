@@ -3,8 +3,10 @@ import upnpclient
 import xmltodict
 import requests
 from npstate import NowPlayingState
-from npsettings import npapi_address, npapi_port, wiim_address
-
+try:
+    from npsettings_local import npapi_address, npapi_port, wiim_address
+except ImportError:
+    from npsettings import npapi_address, npapi_port, wiim_address
 
 np_client = "wiim"
 np = NowPlayingState()
