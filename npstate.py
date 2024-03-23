@@ -1,4 +1,5 @@
 import time
+from npmusicdata import MusicDataStorage
 
 class NowPlayingState:
     """
@@ -7,9 +8,11 @@ class NowPlayingState:
     def __init__(self):
         self.update = False
         self.album = ""
+        self.album_id = ""
         self.artist = []
         self.title = ""
         self.tracks = []
+        self.track = ""
         self.duration = ""
         self.elapsed = ""
         self.npclient = ""
@@ -20,6 +23,7 @@ class NowPlayingState:
         self.art_url = ""
         self.debug = False
         self.last_update_time = time.time()-60 # clients
+        self.last_track_elapsed = 0
         self.api_payloads = [self.get_empty_payload()]
         self.last_payload = self.get_empty_payload()
         self.epoc_start = time.time()  # Track the time the album started
@@ -45,6 +49,12 @@ class NowPlayingState:
     def set_artist(self, artist):
         self.artist = artist
 
+    def set_album_id(self, album_id):
+        self.album_id = album_id
+
+    def get_album_id(self):
+        return self.album_id
+
     def get_artist(self):
         return self.artist
 
@@ -61,8 +71,10 @@ class NowPlayingState:
         return self.npclient
 
     def set_tracks(self, tracks: list):
-        print(f"Setting tracks: {tracks}")
         self.tracks = tracks
+
+    def set_track(self, track):
+        self.track = track
 
     def set_elapsed(self, elapsed):
         current_time = int(time.time())
@@ -75,6 +87,23 @@ class NowPlayingState:
         return self.elapsed
 
     def set_duration(self, duration):
+        # if the duration has changed it means we have switched tracks,
+        # check if the current track was completed (over 75% elapsed time) and if so, insert the data
+        if self.duration != duration:
+            elapsed_seconds = self._time_to_seconds(self.get_elapsed())
+            duration_seconds = self._time_to_seconds(self.duration)
+            if elapsed_seconds > 0.75 * duration_seconds:
+                npdata = MusicDataStorage()
+                npdata.insert_data(
+                    self.get_album(),
+                    self.get_album_id(),
+                    self.get_artist_str(),
+                    self.get_title(),
+                    elapsed_seconds,
+                    self.get_track(),
+                    len(self.get_tracks()),
+                    self.get_npclient()
+                )
         self.duration = duration
 
     def get_duration(self):
@@ -102,6 +131,9 @@ class NowPlayingState:
 
     def get_tracks(self):
         return self.tracks
+    
+    def get_track(self):
+        return self.track
 
     def add_api_payload(self, payload):
         self.api_payloads.append(payload)
@@ -170,15 +202,15 @@ class NowPlayingState:
         if payload == self.get_empty_payload():
             return False
         elif payload != self.get_last_payload():
+            if payload["state"] == "playing":
+                # only update the durtion/elapsed time if the player is active or playing
+                self.set_duration(payload["duration"])
+                self.set_elapsed(payload["elapsed"])
             self.set_last_payload(payload)
             self.set_title(payload["title"])
             self.set_artist(payload["artist"])
             self.set_album(payload["album"])
             self.set_npclient(payload["npclient"])
-            if payload["state"] == "playing":
-                # only update the elapsed time if the player is active or playing
-                self.set_duration(payload["duration"])
-                self.set_elapsed(payload["elapsed"])
             self.set_player_state(payload["state"])
             if "art_url" in payload:
                 self.set_art_url(payload["art_url"])
