@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Albums</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Albums</h1>
+        <ul class="album-list">
+            {% for album in data %}
+            <li class="album-item">
+                <div class="album-info">
+                    <img src="{{ url_for('static', filename='album_images/' + album.album_id + '.jpg') }}" alt="{{ album.album }}" class="album-art">
+                    <div class="album-details">
+                        <h2 class="album-title">{{ album.album }}</h2>
+                        <p class="album-meta">Listened to: {{ album.timestamp }}</p>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
