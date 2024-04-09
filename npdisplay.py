@@ -3,6 +3,7 @@ from tkinter import Label, ttk
 from threading import Timer
 import time
 from screensaver import AlbumArtScreensaver
+from nputils import display_is_on
 
 try:
     from npsettings_local import screensaver_delay, primary_fontname, header_fontname
@@ -12,8 +13,8 @@ except ImportError:
 
 class NowPlayingDisplay:
     """This class is for creating and updating the objects of the Now Playing screen."""
-    def __init__(self, tk_instance, screenwidth, screenheight):
-        self.fontsize = screenheight // 33
+    def __init__(self, tk_instance, sw, sh):
+        self.fontsize = sh // 33
         self.header_fontsize = int(self.fontsize * 0.8)
         self.fontname = primary_fontname
         self.header_fontname = header_fontname
@@ -47,7 +48,7 @@ class NowPlayingDisplay:
             tk_instance,
             text="title",
             anchor="n",
-            wraplength=screenwidth-screenheight,
+            wraplength=sw-sh,
             justify="center",
             padx=0,
             pady=0,
@@ -61,7 +62,7 @@ class NowPlayingDisplay:
             tk_instance,
             text="",
             anchor="n",
-            wraplength=screenwidth-screenheight-20,
+            wraplength=(sw - sh) - ((sw - sh) * 0.03),
             justify="center",
             padx=0,
             pady=0,
@@ -77,7 +78,7 @@ class NowPlayingDisplay:
             tk_instance,
             text="album",
             anchor="s",
-            wraplength=screenwidth-screenheight,
+            wraplength=sw-sh,
             justify="center",
             padx=0,
             pady=0,
@@ -91,7 +92,7 @@ class NowPlayingDisplay:
             tk_instance,
             text="",
             anchor="s",
-            wraplength=screenwidth-screenheight,
+            wraplength=sw-sh,
             justify="center",
             padx=0,
             pady=0,
@@ -105,7 +106,7 @@ class NowPlayingDisplay:
             tk_instance,
             text="",
             anchor="s",
-            wraplength=screenwidth-screenheight,
+            wraplength=sw-sh,
             justify="center",
             padx=20,
             pady=0,
@@ -119,7 +120,7 @@ class NowPlayingDisplay:
             tk_instance,
             text="",
             anchor="s",
-            wraplength=screenwidth-screenheight,
+            wraplength=sw-sh,
             justify="center",
             padx=10,
             pady=0,
@@ -129,12 +130,12 @@ class NowPlayingDisplay:
         )
         self.album_lbl.grid(row=2, column=1, columnspan=3, sticky="ew")
 
-        # Artist
+        # Artists
         self.artist_header_lbl = Label(
             tk_instance,
             text="artists",
             anchor="s",
-            wraplength=screenwidth-screenheight,
+            wraplength=sw-sh,
             justify="center",
             padx=0,
             pady=0,
@@ -148,7 +149,7 @@ class NowPlayingDisplay:
             tk_instance,
             text="",
             anchor="s",
-            wraplength=screenwidth-screenheight,
+            wraplength=(sw - sh) - ((sw - sh) * 0.03),
             justify="center",
             padx=10,
             pady=0,
@@ -163,7 +164,7 @@ class NowPlayingDisplay:
             tk_instance,
             text="track",
             anchor="s",
-            wraplength=screenwidth-screenheight,
+            wraplength=sw-sh,
             justify="center",
             padx=0,
             pady=0,
@@ -177,7 +178,7 @@ class NowPlayingDisplay:
             tk_instance,
             text="",
             anchor="s",
-            wraplength=screenwidth-screenheight-20,
+            wraplength=(sw - sh) - ((sw - sh) * 0.03),
             justify="center",
             padx=0,
             pady=0,
@@ -220,8 +221,7 @@ class NowPlayingDisplay:
             foreground="black",
             background=self.pgbar_color,
             troughcolor=self.header_bgcolor,
-            borderwidth=0,
-            height=6
+            borderwidth=0
         )
         self.progress_bar = ttk.Progressbar(
             tk_instance,
@@ -229,8 +229,8 @@ class NowPlayingDisplay:
             mode="determinate",
             style="Custom.Horizontal.TProgressbar"
         )
-        self.progress_bar.config(length=screenwidth, value=0, maximum=100)       
-        self.progress_bar.grid(row=6, column=1, columnspan=3, sticky="es")
+        self.progress_bar.config(length=sw, value=0, maximum=100)
+        self.progress_bar.grid(row=6, column=1, columnspan=3, sticky="es", ipady=sh//200)
 
         # Full Screen Album Art goes here!
         self.art_lbl = Label(
@@ -256,7 +256,7 @@ class NowPlayingDisplay:
             mode="determinate",
             style="Custom.Vertical.TProgressbar"
         )
-        self.left_pgbar.config(length=screenheight, value=0, maximum=100)
+        self.left_pgbar.config(length=sh, value=0, maximum=100)
         self.left_pgbar.grid(row=1, column=0, rowspan=6, sticky="ens", padx=0, pady=0)
 
         self.right_pgbar = ttk.Progressbar(
@@ -265,7 +265,7 @@ class NowPlayingDisplay:
             mode="determinate",
             style="Custom.Vertical.TProgressbar"
         )
-        self.right_pgbar.config(length=screenheight, value=0, maximum=100)
+        self.right_pgbar.config(length=sh, value=0, maximum=100)
         self.right_pgbar.grid(row=1, column=2, rowspan=6, sticky="ens", padx=0, pady=0)
         self.left_pgbar["value"] = 0
         self.right_pgbar["value"] = 0
@@ -344,7 +344,7 @@ class NowPlayingDisplay:
 
     def start_screensaver(self, delay):
         if AlbumArtScreensaver.running:
-            if AlbumArtScreensaver.display_is_on():
+            if display_is_on():
                 self._stop_screensaver()
             else:
                 return
