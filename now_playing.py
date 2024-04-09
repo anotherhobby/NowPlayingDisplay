@@ -10,13 +10,15 @@ from tkinter import Tk
 
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, jsonify, request
+from flask import Flask, render_template, jsonify, request
 from PIL import Image, ImageTk
 from thefuzz import process
 
 from get_cover_art.cover_finder import DEFAULTS, CoverFinder, Meta
 from npstate import NowPlayingState
 from npdisplay import NowPlayingDisplay
+from npmusicdata import MusicDataStorage
+from nputils import display_is_on
 
 try:
     from npsettings_local import DEBUG
@@ -30,7 +32,7 @@ tk = Tk()
 npui = NowPlayingDisplay(tk, tk.winfo_screenwidth(), tk.winfo_screenheight())
 state = NowPlayingState()
 finder = CoverFinder(debug=DEBUG)
-npapi = Flask(__name__)
+npapi = Flask(__name__, template_folder='www')
 
 CODE_PATH = os.path.dirname(os.path.abspath(__file__))
 missing_art = os.path.join(CODE_PATH, 'images/missing_art.png')
@@ -46,8 +48,7 @@ def display_setup():
     tk.config(bg='#000000')
     tk.columnconfigure(1, weight=2)
     tk.columnconfigure(2, weight=0)
-
-    logger.debug("Display setup complete")
+    logger.debug(f"Display setup complete. Resolution: {tk.winfo_screenwidth()}x{tk.winfo_screenheight()}")
 
 
 def fetch_album():
@@ -181,7 +182,6 @@ def clear_display():
     tk.update()
 
 
-
 def np_mainloop():
     ''' Main loop for the Now Playing display, updates the display with new information every second'''
     old_title = ""
@@ -219,7 +219,7 @@ def np_mainloop():
                 old_title = title
                 if title == "":
                     clear_display()
-                    npui.start_screensaver(10)
+                    npui.start_screensaver(30)
                     continue
 
                 # update the artist and duration on the display
@@ -300,7 +300,6 @@ def mk_album_art(path):
     return original_art, dimmed_art
 
 
-
 def signal_handler(sig, frame):
     # best effort to exit the program
     global running
@@ -313,6 +312,12 @@ def signal_handler(sig, frame):
 @npapi.route('/update-now-playing', methods=['POST'])
 def update_now_playing():
     '''API endpoint for updating the now playing information on the display.'''
+    # if screen is powered off, just return and don't process the request
+    if not display_is_on():
+        logger.debug(f"display is powered off, not processing request")
+        return jsonify({"message": "display is powered off"}), 200
+    else:
+        logger.debug(f"display is powered on, processing request")
     try:
         payload = request.json
         logger.debug(f"api received: {payload}")
@@ -320,7 +325,6 @@ def update_now_playing():
         logger.error(e)
         logger.error(request.data)
         return jsonify({"message": "Invalid JSON payload"}), 400
-
     # require all keys in the payload to be present
     if all(key in payload for key in state.get_empty_payload()):
         # only allow updates from one client at a time
@@ -332,11 +336,24 @@ def update_now_playing():
                     logger.debug(f"client mismatch, wait 60s")
                     return jsonify({"message": "Client mismatch, wait 60s"}), 400
         state.add_api_payload(payload)
-        return jsonify({"message": "Payload received successfully"})
+        return jsonify({"message": "Payload received successfully"}), 200
     else:
         logger.debug(f"invalid payload: {payload}")
         return jsonify({"message": "Invalid payload"}), 400
-    
+
+@npapi.route('/')
+def index():
+    return render_template('index.html')
+
+@npapi.route('/tracks')
+def tracks():
+    data = MusicDataStorage().retrieve_tracks()
+    return render_template('tracks.html', data=data)
+
+@npapi.route('/albums')
+def albums():
+    data = MusicDataStorage().retrieve_albums()
+    return render_template('albums.html', data=data)
 
 def start_api():
     '''Start the Flask API to accept requests to update the now playing information.'''
