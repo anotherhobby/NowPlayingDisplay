@@ -32,3 +32,33 @@ class MusicDataStorage:
 
     def close_connection(self):
         self.conn.close()
+
+    def retrieve_tracks(self):
+        self.cursor.execute('''SELECT * FROM music_data''')
+        tracks = self.cursor.fetchall()
+        track_data = []
+        for track in tracks:
+            track_data.append({
+                'album_id': track[1],
+                'album': track[2],
+                'artists': track[3],
+                'title': track[4],
+                'elapsed': track[5],
+                'track': track[6],
+                'tracks': track[7],
+                'npclient': track[8],
+                'timestamp': track[9]  # Changed index to 9
+            })
+        return track_data
+    
+    def retrieve_albums(self):
+        self.cursor.execute('''SELECT DISTINCT album_id, album, timestamp FROM music_data''')
+        albums = self.cursor.fetchall()
+        album_data = []
+        for album in albums:
+            album_data.append({
+                'album_id': album[0],
+                'album': album[1],
+                'timestamp': album[2]
+            })
+        return album_data
