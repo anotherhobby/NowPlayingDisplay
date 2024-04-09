@@ -18,7 +18,7 @@ from get_cover_art.cover_finder import DEFAULTS, CoverFinder, Meta
 from npstate import NowPlayingState
 from npdisplay import NowPlayingDisplay
 from npmusicdata import MusicDataStorage
-from nputils import display_is_on
+from nputils import display_on, check_xrandr
 
 try:
     from npsettings_local import DEBUG
@@ -39,6 +39,7 @@ missing_art = os.path.join(CODE_PATH, 'images/missing_art.png')
 npui.set_debug(DEBUG)
 state.set_debug(DEBUG)
 running = True
+monitor = True
 
 
 def display_setup():
@@ -313,11 +314,12 @@ def signal_handler(sig, frame):
 def update_now_playing():
     '''API endpoint for updating the now playing information on the display.'''
     # if screen is powered off, just return and don't process the request
-    if not display_is_on():
-        logger.debug(f"display is powered off, not processing request")
-        return jsonify({"message": "display is powered off"}), 200
-    else:
-        logger.debug(f"display is powered on, processing request")
+    if npui.display_check:
+        if not display_on():
+            logger.debug(f"display is powered off, not processing request")
+            return jsonify({"message": "display is powered off"}), 200
+        else:
+            logger.debug(f"display is powered on, processing request")
     try:
         payload = request.json
         logger.debug(f"api received: {payload}")

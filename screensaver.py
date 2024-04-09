@@ -5,7 +5,7 @@ import pygame
 import math
 from threading import Thread
 import logging
-import subprocess
+from nputils import display_on, check_xrandr
 
 logging.basicConfig(level=logging.INFO)
 logger=logging.getLogger(__name__)
@@ -24,6 +24,10 @@ class AlbumArtScreensaver:
         self.image_map = {}
         self.used_images = set()
         self.screensaver_thread = None
+        if check_xrandr(): # if the system has xrandr, then enable checking for display power
+            self.display_check = True
+        else:
+            self.display_check = False
         pygame.init()
 
     def stop(self):
@@ -129,30 +133,14 @@ class AlbumArtScreensaver:
             clock.tick(5)
 
         logger.debug(f"Quitting screensaver at {time.ctime()}...")
-        if not self.display_is_on():
-            logger.debug("Display is off, waiting indefinitely for it to turn on...")
-        while not self.display_is_on():
-            time.sleep(1)
+        if self.display_check:
+            if not display_on():
+                logger.debug("Display is off, waiting indefinitely for it to turn on...")
+            while not display_on():
+                time.sleep(1)
         pygame.quit()
         AlbumArtScreensaver.running = False
         logger.debug("Screensaver successfully stopped.")
-
-    def display_is_on(self):
-        try:
-            # If the display is physically powered off, pygame will crash when quitting the screensaver.
-            # Check if the display is on by running the xrandr command
-            output = subprocess.check_output(['xrandr'], universal_newlines=True)
-            line = output.split('\n')[1]
-            if int(line.split()[-1][:-2]) > 0:
-                return True
-            else:
-                return False
-        except subprocess.CalledProcessError:
-            logger.error("Error: Unable to execute xrandr command.")
-        except Exception as e:
-            logger.error("Error:", e)
-        return True # don't block if the command fails
-
 
 if __name__ == "__main__":
     screensaver = AlbumArtScreensaver()

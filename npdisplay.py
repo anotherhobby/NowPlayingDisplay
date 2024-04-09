@@ -3,7 +3,7 @@ from tkinter import Label, ttk
 from threading import Timer
 import time
 from screensaver import AlbumArtScreensaver
-from nputils import display_is_on
+from nputils import display_on, check_xrandr
 
 try:
     from npsettings_local import screensaver_delay, primary_fontname, header_fontname
@@ -33,6 +33,12 @@ class NowPlayingDisplay:
         self.screensaver_lock = False
         self.screensaver = None
         self.DEBUG = False
+
+        # if the system has xrandr, then enable checking for display power
+        if check_xrandr():
+            self.display_check = True
+        else:
+            self.display_check = False
 
         # Row Configuration
         tk_instance.rowconfigure(0, weight=0) 
@@ -344,7 +350,7 @@ class NowPlayingDisplay:
 
     def start_screensaver(self, delay):
         if AlbumArtScreensaver.running:
-            if display_is_on():
+            if display_on():
                 self._stop_screensaver()
             else:
                 return
