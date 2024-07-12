@@ -17,7 +17,8 @@ tell application "System Events"
 	try
 		set htmLevel to group 1 of group 1 of group 1 of group 1 of targetWindow
 		set htmlContainer to first UI element of htmLevel
-		set containerLevel to group 1 of group 7 of group 2 of group 1 of htmlContainer
+		set containerLevel to group 1 of group 8 of group 2 of group 1 of htmlContainer
+		
 		
 		set trackTextContainer to UI element 1 of group 1 of group 2 of containerLevel
 		set track to description of trackTextContainer
@@ -31,7 +32,7 @@ tell application "System Events"
 		set AppleScript's text item delimiters to ", " -- Set delimiter to separate multiple artists with comma
 		set artist to description of every UI element of artistContainer as text
 		
-		set timeContainer to group 3 of group 7 of group 2 of group 1 of htmlContainer
+		set timeContainer to group 3 of group 8 of group 2 of group 1 of htmlContainer
 		set timeElapsedContainer to UI element 1 of group 1 of timeContainer
 		set timeElapsed to value of timeElapsedContainer
 		set totalTimeContainer to UI element 1 of group 2 of timeContainer
@@ -47,8 +48,9 @@ tell application "System Events"
 		set previous to enabled of menu item 3 of menu 1 of menu bar item 5 of menu bar 1 of process "TIDAL"
 		set next to enabled of menu item 4 of menu 1 of menu bar item 5 of menu bar 1 of process "TIDAL"
 		
-	on error
+	on error x
 		-- determine if the player is stopped or the window isn't responding
+		-- display dialog x
 		try
 			set previous to enabled of menu item 3 of menu 1 of menu bar item 5 of menu bar 1 of process "TIDAL"
 			set next to enabled of menu item 4 of menu 1 of menu bar item 5 of menu bar 1 of process "TIDAL"
