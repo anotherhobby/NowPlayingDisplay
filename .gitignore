@@ -113,3 +113,4 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+music_data.db

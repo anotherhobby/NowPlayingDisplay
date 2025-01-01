@@ -18,7 +18,6 @@ class NowPlayingState:
         self.npclient = ""
         self.previous_state = "startup"
         self.player_state = "stopped"
-        self.displayed_album = ""
         self.state_lock = False
         self.art_url = ""
         self.debug = False
@@ -27,6 +26,7 @@ class NowPlayingState:
         self.api_payloads = [self.get_empty_payload()]
         self.last_payload = self.get_empty_payload()
         self.epoc_start = time.time()  # Track the time the album started
+        self.quality = ""
 
     def set_last_update_time(self):
         self.last_update_time = time.time()
@@ -37,26 +37,26 @@ class NowPlayingState:
     def set_album(self, album):
         self.album = album
 
+    def get_album(self):
+        return self.album
+
     def set_art_url(self, art_url):
         self.art_url = art_url
 
     def get_art_url(self):
         return self.art_url
 
-    def get_album(self):
-        return self.album
-
     def set_artist(self, artist):
         self.artist = artist
+    
+    def get_artist(self):
+        return self.artist
 
     def set_album_id(self, album_id):
         self.album_id = album_id
 
     def get_album_id(self):
         return self.album_id
-
-    def get_artist(self):
-        return self.artist
 
     def set_title(self, title):
         self.title = title
@@ -87,23 +87,6 @@ class NowPlayingState:
         return self.elapsed
 
     def set_duration(self, duration):
-        # if the duration has changed it means we have switched tracks,
-        # check if the current track was completed (over 75% elapsed time) and if so, insert the data
-        if self.duration != duration:
-            elapsed_seconds = self._time_to_seconds(self.get_elapsed())
-            duration_seconds = self._time_to_seconds(self.duration)
-            if elapsed_seconds > 0.75 * duration_seconds:
-                npdata = MusicDataStorage()
-                npdata.insert_data(
-                    self.get_album(),
-                    self.get_album_id(),
-                    self.get_artist_str(),
-                    self.get_title(),
-                    elapsed_seconds,
-                    self.get_track(),
-                    len(self.get_tracks()),
-                    self.get_npclient()
-                )
         self.duration = duration
 
     def get_duration(self):
@@ -147,15 +130,30 @@ class NowPlayingState:
         return payload
 
     def _time_to_seconds(self, time_str):
-        # Convert time string in mm:ss format to seconds
+        """
+        Convert a time string in "hh:mm:ss" or "mm:ss" format to seconds.
+        
+        Args:
+            time_str (str): Time in the format "hh:mm:ss" or "mm:ss".
+            
+        Returns:
+            int: The total time in seconds.
+        """
         try:
-            minutes, seconds = map(int, str(time_str).split(':'))
-        except:
-            minutes, seconds = 0, 0
-        return minutes * 60 + seconds
+            parts = list(map(int, str(time_str).split(':')))
+            if len(parts) == 3:  # "hh:mm:ss" format
+                hours, minutes, seconds = parts
+            elif len(parts) == 2:  # "mm:ss" format
+                hours, minutes, seconds = 0, *parts
+            else:
+                hours, minutes, seconds = 0, 0, 0
+        except ValueError:
+            hours, minutes, seconds = 0, 0, 0
+
+        return hours * 3600 + minutes * 60 + seconds
 
     def get_epoc_elapsed(self):
-        # Get the elapsed time using epoc and add 2 seconds of delay
+        # Get the elapsed time using epoc
         try:
             total_elapsed_seconds = int(time.time() - self.get_epoc_start())
         except:
@@ -216,7 +214,12 @@ class NowPlayingState:
                 self.set_art_url(payload["art_url"])
             else:
                 self.set_art_url("")
+                print("no url received from wiim")
             self.set_last_update_time()
+            if "quality" in payload:
+                self.set_quality(payload["quality"])
+            else:
+                self.set_quality("")
             return True
         else:
             return False
@@ -230,31 +233,41 @@ class NowPlayingState:
             "elapsed": self.get_elapsed(),
             "state": self.get_player_state(),
             "art_url": self.get_art_url(),
-            "npclient": self.npclient
+            "npclient": self.npclient,
+            "quality": self.get_quality()
         }
         return data
 
     def get_artist_multi_line(self):
-        if len(self.artist) > 1:
-            if len(self.artist) < 5:
-                return "\n".join(self.artist)
+        if self.artist is not None:
+            if len(self.artist) > 1:
+                if len(self.artist) < 5:
+                    # Ensure each artist name is stripped of leading/trailing spaces
+                    return "\n".join(artist.strip() for artist in self.artist)
+                else:
+                # Add space after commas and strip whitespace from artist names
+                    return ", ".join(artist.strip() for artist in self.artist)
             else:
-                # too many lines for the display space, use commas
-                return ", ".join(self.artist)
+                return self.artist[0].strip()
         else:
-            return self.artist[0]
-
-    def get_displayed_album(self):
-        return self.displayed_album
-    
-    def set_displayed_album(self, album):
-        self.displayed_album = album
+            return ""
 
     def get_artist_str(self):
-        if len(self.artist) > 1:
-            return ", ".join(self.artist)
+        if self.artist is not None:
+            if len(self.artist) > 1:
+                # Strip leading/trailing spaces and join with ', ' (comma followed by a space)
+                return ", ".join(artist.strip() for artist in self.artist)
+            else:
+                return self.artist[0].strip()
         else:
-            return self.artist[0]
+            return ""
 
     def get_previous_state(self):
         return self.previous_state
+    
+    def set_quality(self, quality):
+        self.quality = quality
+
+    def get_quality(self):
+        return self.quality
+    

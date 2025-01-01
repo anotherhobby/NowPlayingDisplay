@@ -5,7 +5,7 @@ from get_cover_art.meta import Meta
 DEFAULTS = {
     "art_size": "720",
     "art_quality": "0", # falls back on default quality
-    "art_dest_filename": "{artist} - {album_or_title}.jpg",
+    "art_dest_filename": "{artist} - {album_or_title}.png",
     "throttle": 3,
 }
 

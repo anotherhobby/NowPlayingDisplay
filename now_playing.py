@@ -1,10 +1,12 @@
 import io
 import json
 import logging
+import sys
 import os
 import re
 import signal
 import time
+import hashlib
 from threading import Thread
 from tkinter import Tk
 
@@ -18,24 +20,26 @@ from get_cover_art.cover_finder import DEFAULTS, CoverFinder, Meta
 from npstate import NowPlayingState
 from npdisplay import NowPlayingDisplay
 from npmusicdata import MusicDataStorage
-from nputils import display_on, check_xrandr
-
-try:
-    from npsettings_local import DEBUG
-except ImportError:
-    from npsettings import DEBUG
+from nputils import *
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+try:
+    from npsettings_local import *
+except ImportError:
+    logger.error("local config not found, using default")
+    from npsettings import *
 
 tk = Tk()
 npui = NowPlayingDisplay(tk, tk.winfo_screenwidth(), tk.winfo_screenheight())
 state = NowPlayingState()
 finder = CoverFinder(debug=DEBUG)
 npapi = Flask(__name__, template_folder='www')
+tk.config(cursor="none")
 
 CODE_PATH = os.path.dirname(os.path.abspath(__file__))
-missing_art = os.path.join(CODE_PATH, 'images/missing_art.png')
+missing_art = Image.open(os.path.join(CODE_PATH, 'images/missing_art.png'))
 npui.set_debug(DEBUG)
 state.set_debug(DEBUG)
 running = True
@@ -49,6 +53,11 @@ def display_setup():
     tk.config(bg='#000000')
     tk.columnconfigure(1, weight=2)
     tk.columnconfigure(2, weight=0)
+    
+    # Force the window to be in the foreground
+    tk.focus_force()
+    tk.lift()  # Lift the window to the top
+
     logger.debug(f"Display setup complete. Resolution: {tk.winfo_screenwidth()}x{tk.winfo_screenheight()}")
 
 
@@ -61,9 +70,11 @@ def fetch_album():
     art_path = os.path.join(CODE_PATH, f'album_images/')
     if not os.path.exists(art_path):
         os.makedirs(art_path)
-    album_art, data = finder.download(meta, art_path)
 
-    if album_art:
+    result = finder.download(meta, art_path)
+    
+    if result is not None:
+        album_art, data = result
         state.set_album_id(data.get('collectionId', ""))
         album_title = data.get('collectionName', album)
         if "*" in album_title: # apple music uses a * on explicit titles
@@ -137,7 +148,9 @@ def current_track():
         return f"{index} of {len(state.get_tracks())}"
 
     # old method of matching tracks, will be removed in the future if fuzzy matching works well
-    tracks = state.get_tracks()
+    tracks = state.get_tracks() or []
+    if len(tracks) == 0:
+        return ""
     for index, name in enumerate(tracks, start=1):
         if name.lower() == state.get_title().lower():
             return f"{index} of {len(tracks)}"
@@ -150,12 +163,12 @@ def current_track():
 
 
 def split_lines(text):
-    # if the title has parentheses, split the title into two lines with the parentheses on the second line
-    if "(" in text:
-        text = text.split(" (")
+    # Check if there's a parenthesis with a space before it
+    if " (" in text:
+        text = text.split(" (", 1)  # Only split on the first occurrence
         return f"{text[0]}\n({text[1]}"
     if ": " in text:
-        text = text.split(": ")
+        text = text.split(": ", 1)  # Only split on the first occurrence
         return f"{text[0]}:\n{text[1]}"
     return text
 
@@ -165,7 +178,6 @@ def strip_paren_words(value: str) -> str:
     result = re.sub(r'\([^)]*\)', '', value)
     return result.strip()
 
-
 def clear_display():
     '''Clear all text fields on the display'''
     logger.debug("clearing display")
@@ -173,132 +185,187 @@ def clear_display():
     npui.set_artist("")
     npui.set_album("")
     npui.set_track("")
-    npui.set_duration("")
-    npui.set_elapsed("")
+    npui.set_duration_and_elapsed("", "")
     npui.set_album_released("")
     npui.set_album_duration("")
-    state.set_displayed_album("missing art")
-    a, i = mk_album_art(missing_art)
-    npui.set_artwork(a, a)
+    npui.set_artwork(mk_album_art(missing_art))
     tk.update()
-
 
 def np_mainloop():
     ''' Main loop for the Now Playing display, updates the display with new information every second'''
-    old_title = ""
-    album_for_current_art = ""
     logger.debug("waiting for the display to be ready...")
     display_setup()
     clear_display()
+    old_title = ""
+    old_album = ""
+    old_album_art_path = ""
+    album_for_current_art = ""
+    new_art = True #tells the disiplay to refresh the art or not
+    
+    art_path = os.path.join(CODE_PATH, f'album_images/')
+    if not os.path.exists(art_path):
+        os.makedirs(art_path)
+
+    loop_time = 1.0
+    fast_loop_time = FAST_LOOP_TIME
+
+    #ensure that 0 < fast_loop_time <= loop_time
+    if (fast_loop_time > loop_time) or (FAST_LOOP_TIME <= 0):
+        fast_loop_time = loop_time
+
+    display_is_active = True
 
     while running:
-        tk.update()
-        time.sleep(1)
-        # update_state checks for new API payloads and updates the state if found
-        if not state.update_state():
-            # if the player is playing and state hasn't changed, only update progress
-            if state.get_player_state() == "playing":
-                npui.set_duration(state.get_duration())
-                npui.set_elapsed(state.get_epoc_elapsed())
-            continue
+        try:
+            #sleep for a minimum of fast_loop_time
+            time.sleep(fast_loop_time)
 
-        try: # the player state has changed, update the display
+            #sleep longer if no update has been published
+            if not state.update_state():
+                #if no new data is available, sleep for longer
+                #fast_loop_time is guaranteed to be between 0 and loop_time
+                if display_is_active:
+                    npui.set_duration_and_elapsed(state.get_duration(), state.get_epoc_elapsed())
+                time.sleep(loop_time - fast_loop_time)
+                continue
             
-            if state.get_player_state() == "playing":
-                npui.set_active() # set the display to active (bright)
-            else:
+            #determine if the display should be active or inactive
+            if state.get_player_state() == "playing" and not display_is_active:
+                logger.debug("SETTING ACTIVE")
+                npui.set_active()
+                display_is_active = True
+            elif state.get_player_state() != "playing" and display_is_active:
+                logger.debug("SETTING INACTIVE")
                 npui.set_inactive() # set the display to inactive (dim)
+                keep_recent_files(art_path, MAX_STORED_ALBUM_IMAGES)
+                display_is_active = False
 
-            # update the elapsed/duration and progress bar
-            npui.set_duration(state.get_duration())
-            npui.set_elapsed(state.get_epoc_elapsed())
-
+            #get the title of the currently playing track
             title = state.get_title()
-            if title != old_title:
-                # the song title has changed, update the display
-                logger.debug(f"Title has changed: {title}")
+            album = state.get_album()
+            if (title is not None) and ((title != old_title) or (album != old_album)): # the song title or album has changed, update the display
                 old_title = title
-                if title == "":
-                    clear_display()
-                    npui.start_screensaver(30)
+                old_album = album
+                logger.debug(f"Title or Album has changed: {title} {album}")
+
+                if title == "" or (state.get_player_state() != "playing" and display_is_active):
+                    npui.set_inactive() # set the display to inactive (dim)
+                    display_is_active = False
                     continue
+                try:
+                    #go through each npclient
+                    if state.get_npclient() == "wiim":
+                        #get the art url, find the sha, set the filename to be that
+                        art_url = state.get_art_url()
+                        art_url_hash = hashlib.sha256(art_url.encode('utf-8')).hexdigest()
+                        album_art_path = str(art_path) + art_url_hash + ".png" #the filename will be the sha of the art URL
 
-                # update the artist and duration on the display
-                artist_text = state.get_artist_multi_line()
-                npui.set_artist(artist_text)
-                npui.set_duration(state.get_duration())
+                        album_image_to_show = None
 
-                # check if the album is still the same
-                if state.get_displayed_album() == state.get_album():
-                    logger.debug(f"Album is the same: {state.get_album()}")
-                    pass
-                else:
-                    try:
+                        if not os.path.exists(album_art_path): #album art doesn't exist for the given URL
+                            if "tidal" in art_url: #substitute default resolution 680x680 to 1080x1080, works for tidal
+                                pattern = r'\d{3,4}x\d{3,4}'
+                                art_url = re.sub(pattern, '1080x1080', art_url)
+                            
+                            #get the new image
+                            with requests.get(art_url, stream=True) as response:
+                                if response.status_code == 200:
+                                    with Image.open(response.raw) as image:
+                                        logger.debug(f"downloading new album art")
+                                        # Convert image to RGBA format to ensure 32-bit depth
+                                        image = image.convert("RGBA")
+                                        album_image_to_show = image
+                                        if "tidal" in art_url: #save for tidal (can test for other URLs that are worth saving)
+                                            image.save(album_art_path)
+                                    new_art = True
+                        else:
+                            logger.debug(f"already had album art downloaded")
+                            if old_album_art_path != album_art_path:
+                                with Image.open(album_art_path) as image:
+                                    album_image_to_show = image.copy()
+                                    old_album_art_path = album_art_path
+                                new_art = True
+                            else:
+                                new_art = False
+                    else:
+                        pass #put other clients here, if desired
                         # try to get the album art and data from Apple Music
-                        art, album, album_url = fetch_album()
-                        if art is not None:
+
+                    if USE_APPLE_DOWNLOADER:
+                        result = fetch_album()
+
+                        if result is not None:
+                            art, album, album_url = result
                             # set the album art to the new image
-                            a, i = mk_album_art(io.BytesIO(art))
-                            npui.set_artwork(a, i)
-                            state.set_displayed_album(state.get_album())
-                            logger.debug(f"set image for album: {state.get_album()}")
-                            album_for_current_art = album
+                            if not os.path.exists(album_art_path): 
+                                npui.set_artwork(mk_album_art(io.BytesIO(art)))
+                                logger.debug(f"set fallback apple image for album: {state.get_album()}")
+                
+                            #album_for_current_art = album
                             album_data = apple_album_data(album_url)
                             state.set_tracks(album_data["tracks"])
                             npui.set_album_released(album_data["released"])
-                            npui.set_album_duration(album_data["duration"])                            
+                            #npui.set_album_duration(album_data["duration"])                            
                         else:
                             logger.debug("No album art found")
                             # if album art is provided, use it for the missing art, otherwise use the default missing art
                             if album_for_current_art != "":
                                 image_data = finder.downloader._urlopen_safe(state.get_art_url())
-                                a, i = mk_album_art(io.BytesIO(image_data))
-                                npui.set_artwork(a, i)
+                                npui.set_artwork(mk_album_art(io.BytesIO(image_data)))
                             else:
                                 logger.debug("No album art found, using default")
-                                state.set_displayed_album("missing art")
-                                a, i = mk_album_art(missing_art)
-                                npui.set_artwork(a, a)
+                                npui.set_artwork(mk_album_art(missing_art))
                             album_for_current_art = state.get_album()
                             state.set_tracks([])
                             npui.set_album_released("")
                             npui.set_album_duration("") 
 
-                    except Exception as e:
-                        # generic exception handling, print the exception and continue
-                        logger.error(e)
-                        pass
+                except Exception as e:
+                    # generic exception handling, print the exception and continue
+                    logger.error(e)
+                    pass
 
-                    # update the album title on the display
-                    npui.set_album(split_lines(album_for_current_art))
+                # set song title on the display
+                npui.set_title(split_lines(title))
+                
+                # set the artist on the display
+                npui.set_artist(state.get_artist_multi_line())
 
-            # update the title & track on the display
-            npui.set_title(split_lines(title))
-            track = current_track()
-            state.set_track(track.split(" ")[0])
-            npui.set_track(track)
+                # set the album on the display
+                npui.set_album(split_lines(state.get_album()))
+                
+                track = current_track()
+                state.set_track(track.split(" ")[0])
+                npui.set_track(track)
+                
+                if new_art:
+                    if album_image_to_show:
+                        npui.set_artwork(mk_album_art(album_image_to_show))
+                    else:
+                        npui.set_artwork(mk_album_art(missing_art))
+
+                del album_image_to_show
+
+            if display_is_active: #put any tasks here that should run every time the display updates
+                #this will also run when the regular "duration sync" occurs, around 10s by default
+                #duration and elapsed are updated, along with the active text colour and art mask (for dimming)
+                npui.set_active()
+                npui.set_duration_and_elapsed(state.get_duration(), state.get_epoc_elapsed())
+            
+            tk.update_idletasks() 
+            tk.update()
 
         except Exception as e:
             logger.error(e)
 
-
-def mk_album_art(path):
+def mk_album_art(image):
     # Resize the original image to the screen height
-    original_image = Image.open(path)
-    original_image = original_image.resize((tk.winfo_screenheight(), tk.winfo_screenheight()))
-    original_art = ImageTk.PhotoImage(original_image)
+    original_art = None
 
-    # Create a copy of the original image
-    dimmed_image = original_image.copy()
+    # Create a copy of the resized image
+    original_art = ImageTk.PhotoImage(image.resize((tk.winfo_screenheight(), tk.winfo_screenheight())))
 
-    # Apply a semi-transparent black overlay to create a dimmed effect
-    overlay = Image.new('RGBA', dimmed_image.size, (0, 0, 0, 128))  # 50% transparent black overlay
-    dimmed_image.paste(overlay, (0, 0), overlay)
-
-    # Convert the dimmed image to PhotoImage
-    dimmed_art = ImageTk.PhotoImage(dimmed_image)
-
-    return original_art, dimmed_art
+    return original_art
 
 
 def signal_handler(sig, frame):
@@ -307,19 +374,18 @@ def signal_handler(sig, frame):
     print('Exiting...')
     running = False
     tk.quit()
-    os._exit(0)
+    sys.exit(0)
 
 
 @npapi.route('/update-now-playing', methods=['POST'])
 def update_now_playing():
     '''API endpoint for updating the now playing information on the display.'''
     # if screen is powered off, just return and don't process the request
-    if npui.display_check:
-        if not display_on():
-            logger.debug(f"display is powered off, not processing request")
-            return jsonify({"message": "display is powered off"}), 200
-        else:
-            logger.debug(f"display is powered on, processing request")
+    if False: #put code here that should block processing the api (such as checking if the display is off)
+        logger.debug(f"display is powered off, not processing request")
+        return jsonify({"message": "display is powered off"}), 200
+    else:
+        logger.debug(f"display is powered on, processing request")
     try:
         payload = request.json
         logger.debug(f"api received: {payload}")
@@ -328,7 +394,7 @@ def update_now_playing():
         logger.error(request.data)
         return jsonify({"message": "Invalid JSON payload"}), 400
     # require all keys in the payload to be present
-    if all(key in payload for key in state.get_empty_payload()):
+    if payload and all(key in payload for key in state.get_empty_payload()):
         # only allow updates from one client at a time
         if payload["npclient"] != state.get_npclient():
             logger.debug(f"client mismatch: {payload['npclient']} != {state.get_npclient()}")
@@ -370,10 +436,20 @@ if __name__ == "__main__":
         logger.setLevel(logging.DEBUG)
 
     logger.info("Starting API...")
-    Thread(target=start_api).start()
+    api_thread = Thread(target=start_api)
+    api_thread.daemon = True  # Daemon threads automatically close when the main program exits
+    api_thread.start()
 
     logger.info("Starting NowPlayingDisplay thread...")
-    Thread(target=np_mainloop).start()
+    display_thread = Thread(target=np_mainloop)
+    display_thread.daemon = True  # Set as a daemon thread
+    display_thread.start()
 
     logger.info("Starting main display loop...")
-    tk.mainloop()
+    try:
+        tk.mainloop()
+    finally:
+        running = False  # Safely signal threads to exit
+        logger.info("Shutting down...")
+        display_thread.join()  # Ensure threads finish execution
+        api_thread.join()

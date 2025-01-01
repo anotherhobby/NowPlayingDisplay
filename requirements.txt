@@ -8,3 +8,6 @@ tkinter
 pygame
 beautifulsoup4
 musicbrainzngs
+upnpclient
+tzlocal
+astral
